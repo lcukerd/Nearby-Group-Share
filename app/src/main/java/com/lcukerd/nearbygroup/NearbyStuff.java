@@ -57,9 +57,12 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                     Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.RECORD_AUDIO
             };
-    private static final long ADVERTISING_DURATION = 30000;
-    private static final Strategy STRATEGY = Strategy.P2P_STAR;
+    private ArrayList<String> reqdDevices = new ArrayList<>();
+    private String serverName;
+    private final long ADVERTISING_DURATION = 30000;
+    private final Strategy STRATEGY = Strategy.P2P_STAR;
     private GoogleApiClient mGoogleApiClient;
+    private final Set<AudioPlayer> mAudioPlayers = new HashSet<>();
     private final Map<String, Endpoint> mDiscoveredEndpoints = new HashMap<>(),
             mPendingConnections = new HashMap<>(),
             mEstablishedConnections = new HashMap<>();
@@ -67,7 +70,7 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
     public State mState = State.UNKNOWN;
     private String type, name, SERVICE_ID = "com.lcukerd.NearbyGroupSERVICE";
     private static final String tag = NearbyStuff.class.getSimpleName();
-    private final Handler mUiHandler = new Handler(Looper.getMainLooper());
+    public final Handler mUiHandler = new Handler(Looper.getMainLooper());
     private final Runnable mDiscoverRunnable =
             new Runnable() {
                 @Override
@@ -76,18 +79,33 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                     setState(State.DISCOVERING);
                 }
             };
+    private final Runnable mAdvertiseRunnable =
+            new Runnable() {
+                @Override
+                public void run()
+                {
+                    setState(State.ADVERTISING);
+                }
+            };
 
-    public NearbyStuff(String type, String name)
+    public NearbyStuff(String type, String name, Object devices)
     {
         this.type = type;
         this.name = name;
+        if (type.equals("Server"))
+            this.reqdDevices.addAll((ArrayList<String>) devices);
+        else
+            this.serverName = (String) devices;
     }
 
     public void createNearby(String type, Context context)
     {
         if (hasPermissions(context, REQUIRED_PERMISSIONS)) {
             createGoogleApiClient(context);
-            postDelayed(mDiscoverRunnable, ADVERTISING_DURATION);
+            if (type.equals("client"))
+                postDelayed(mDiscoverRunnable, ADVERTISING_DURATION);
+            else
+                postDelayed(mAdvertiseRunnable, ADVERTISING_DURATION);
         } else {
             Toast.makeText(context, "You fuckin changed permissions!", Toast.LENGTH_SHORT);
         }
@@ -148,7 +166,8 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                         if (SERVICE_ID.equals(info.getServiceId())) {           //check for connection here
                             Endpoint endpoint = new Endpoint(endpointId, info.getEndpointName());
                             mDiscoveredEndpoints.put(endpointId, endpoint);
-                            connectToEndpoint(endpoint);
+                            if (serverName.equals(endpoint.getName()))
+                                connectToEndpoint(endpoint);
                         }
                     }
 
@@ -211,12 +230,11 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                             endpointId, connectionInfo.getEndpointName()));
                     Endpoint endpoint = new Endpoint(endpointId, connectionInfo.getEndpointName());
                     mPendingConnections.put(endpointId, endpoint);
-                    //if ()
-                    {//check whether to accept connection or not
-                        acceptConnection(endpoint);
-                    }
-                    {
-                        rejectConnection(endpoint);
+                        if (type.equals("Server")) {
+                            if (reqdDevices.remove(endpoint.getName()))
+                                acceptConnection(endpoint);
+                            else
+                                rejectConnection(endpoint);
                     }
                 }
 
@@ -229,11 +247,17 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                             connectedToEndpoint(mPendingConnections.remove(endpointId));
                             break;
                         case ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED:
-                            // The connection was rejected by one or both sides.
-                            break;
                         case ConnectionsStatusCodes.STATUS_ERROR:
-                            Log.e(tag, String.format("Connection failed. Received status %s.", getString(result.getStatus())));
-                            onConnectionFailed(mPendingConnections.remove(endpointId));
+                            if (type.equals("Server")) {
+                                Log.e(tag, String.format("Connection with client %s failed. Received status %s.",
+                                        endpointId, getString(result.getStatus())));
+                            }
+                            else
+                            {
+                                Log.e(tag, String.format("Connection with server %s failed. Received status %s.",
+                                        endpointId,getString(result.getStatus())));
+                                onConnectionFailed(mPendingConnections.remove(endpointId));
+                            }
                             break;
                     }
                     mIsConnecting = false;
@@ -250,9 +274,12 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                 }
             };
 
-    public void send(Payload payload, Set<String> endpoints)
+    public void send(Payload payload)
     {
-        Nearby.Connections.sendPayload(mGoogleApiClient, new ArrayList<>(endpoints), payload)
+        ArrayList<String> ids = new ArrayList<>();
+        for (Endpoint e:getConnectedEndpoints())
+            ids.add(e.getId());
+        Nearby.Connections.sendPayload(mGoogleApiClient,ids, payload)
                 .setResultCallback(
                         new ResultCallback<Status>() {
                             @Override
@@ -275,9 +302,7 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
         @Override
         public void onPayloadTransferUpdate(String endpointId, PayloadTransferUpdate update)
         {
-            logD(
-                    String.format(
-                            "onPayloadTransferUpdate(endpointId=%s, update=%s)", endpointId, update));
+            Log.d(tag, String.format("onPayloadTransferUpdate(endpointId=%s, update=%s)", endpointId, update));
         }
     };
 
@@ -350,8 +375,7 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
     protected void onReceive(NearbyStuff.Endpoint endpoint, Payload payload)
     {
         if (payload.getType() == Payload.Type.STREAM) {
-            AudioPlayer player =
-                    new AudioPlayer(payload.asStream().asInputStream()) {
+            AudioPlayer player = new AudioPlayer(payload.asStream().asInputStream()) {
                         @WorkerThread
                         @Override
                         protected void onFinish()
@@ -371,6 +395,19 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
             mAudioPlayers.add(player);
             player.start();
         }
+    }
+
+    public void stopPlaying()
+    {
+        for (AudioPlayer player : mAudioPlayers) {
+            player.stop();
+        }
+        mAudioPlayers.clear();
+    }
+
+    public boolean isPlaying()
+    {
+        return !mAudioPlayers.isEmpty();
     }
 
     private void connectedToEndpoint(Endpoint endpoint)

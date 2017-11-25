@@ -18,6 +18,7 @@ import com.google.android.gms.nearby.connection.Payload;
 import com.lcukerd.nearbygroup.NearbyStuff.State;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -55,7 +56,6 @@ public class NearbyActivity extends AppCompatActivity {
             };
     @Nullable
     private AudioRecorder mRecorder;
-    private final Set<AudioPlayer> mAudioPlayers = new HashSet<>();
     private int mOriginalVolume;
 
 
@@ -64,16 +64,16 @@ public class NearbyActivity extends AppCompatActivity {
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_old);
-        getSupportActionBar()
-                .setBackgroundDrawable(ContextCompat.getDrawable(this, R.drawable.actionBar));
+        //getSupportActionBar().setBackgroundDrawable(ContextCompat.getDrawable(this, R.drawable.actionBar));
 
-        mName = generateRandomName();
+        mName = "mummy";
+        ArrayList<String> reqdDevices = getIntent().getStringArrayListExtra("ReqdDevices");
 
         ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, 0);
 
         ((TextView) findViewById(R.id.name)).setText(mName);
         vibrate();
-        nearbyStuff = new NearbyStuff("Server", "");
+        nearbyStuff = new NearbyStuff("Server", mName,reqdDevices);
     }
 
     @Override
@@ -100,22 +100,17 @@ public class NearbyActivity extends AppCompatActivity {
     @Override
     protected void onStop()
     {
-        // Restore the original volume.
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mOriginalVolume, 0);
         setVolumeControlStream(AudioManager.USE_DEFAULT_STREAM_TYPE);
-
         if (isRecording()) {
             stopRecording();
         }
-        if (isPlaying()) {
-            stopPlaying();
+        if (nearbyStuff.isPlaying()) {
+            nearbyStuff.stopPlaying();
         }
-
         nearbyStuff.setState(State.UNKNOWN);
-
-        mUiHandler.removeCallbacksAndMessages(null);
-
+        nearbyStuff.mUiHandler.removeCallbacksAndMessages(null);
         super.onStop();
     }
 
@@ -137,18 +132,6 @@ public class NearbyActivity extends AppCompatActivity {
         }
     }
 
-    private void stopPlaying()
-    {
-        for (AudioPlayer player : mAudioPlayers) {
-            player.stop();
-        }
-        mAudioPlayers.clear();
-    }
-
-    private boolean isPlaying()
-    {
-        return !mAudioPlayers.isEmpty();
-    }
 
     private void startRecording()
     {

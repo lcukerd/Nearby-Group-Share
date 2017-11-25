@@ -10,7 +10,7 @@ import java.io.InputStream;
 
 import static android.os.Process.THREAD_PRIORITY_AUDIO;
 import static android.os.Process.setThreadPriority;
-import static com.lcukerd.nearbytest.Constants.TAG;
+import static com.lcukerd.nearbygroup.Constants.TAG;
 
 /**
  * A fire-once class. When created, you must pass a {@link InputStream}. Once {@link #start()} is

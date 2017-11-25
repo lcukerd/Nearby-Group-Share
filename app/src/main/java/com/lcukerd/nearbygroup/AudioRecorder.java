@@ -11,7 +11,7 @@ import java.io.OutputStream;
 
 import static android.os.Process.THREAD_PRIORITY_AUDIO;
 import static android.os.Process.setThreadPriority;
-import static com.lcukerd.nearbytest.Constants.TAG;
+import static com.lcukerd.nearbygroup.Constants.TAG;
 
 /**
  * When created, you must pass a {@link ParcelFileDescriptor}. Once {@link #start()} is called, the
