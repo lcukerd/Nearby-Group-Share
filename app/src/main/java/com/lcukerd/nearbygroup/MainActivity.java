@@ -3,10 +3,12 @@ package com.lcukerd.nearbygroup;
 import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -14,20 +16,16 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
-import java.util.ArrayList;
-import java.util.Map;
+import com.lcukerd.nearbygroup.models.WifiService;
 
-import static com.lcukerd.nearbygroup.BackgroundDiscovery.NAME;
-import static com.lcukerd.nearbygroup.BackgroundDiscovery.STATUS;
-import static com.lcukerd.nearbygroup.BackgroundDiscovery.TXTRECORD_PROP_AVAILABLE;
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
     private ArrayAdapter<String> devicesAdapter;
     private ArrayList<String> devicesToConnect = new ArrayList<>();
-    private WifiP2pManager manager;
-    private WifiP2pManager.Channel channel;
-    private BroadcastReceiver receiver;
+    private String name;
+    private WifiService wifiService;
     private static final String tag = MainActivity.class.getSimpleName();
 
     @Override
@@ -36,6 +34,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         stopService(new Intent(this, BackgroundDiscovery.class));
+
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        if (preferences.getString("DeviceName", "doncha know").equals("doncha know"))
+        {
+            Log.d(tag,"Naming Device");
+            preferences.edit().putString("DeviceName", "Papa").commit();
+        }
+        name = preferences.getString("DeviceName", "doncha know");
 
         devicesAdapter =
                 new ArrayAdapter<String>(
@@ -58,93 +64,23 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view)
             {
-
+                Intent intent = new Intent(getApplicationContext(),NearbyActivity.class);
+                intent.putExtra("ReqdDevices",devicesToConnect);
+                intent.putExtra("MyName",name);
+                intent.putExtra("type","Activity");
+                startActivity(intent);
             }
         });
 
-        manager = (WifiP2pManager) getSystemService(WIFI_P2P_SERVICE);
-        channel = manager.initialize(this, getMainLooper(), null);
-        IntentFilter intentFilter = BackgroundDiscovery.startWifiP2P("service", manager, channel);
-        discoverServiceandpopulateAdapter(manager, channel);
-        receiver = new WiFiDirectBroadcastReceiver();
-        registerReceiver(receiver, intentFilter);
-    }
-
-    private void discoverServiceandpopulateAdapter(WifiP2pManager manager, WifiP2pManager.Channel channel)
-    {
-
-        manager.setDnsSdResponseListeners(channel, null,
-                new WifiP2pManager.DnsSdTxtRecordListener() {
-                    @Override
-                    public void onDnsSdTxtRecordAvailable(
-                            String fullDomainName, Map<String, String> record,
-                            WifiP2pDevice device)
-                    {
-                        try {
-                            if (!record.get(STATUS).equals("connect")) {
-                                devicesAdapter.add(record.get(NAME));
-                                devicesAdapter.notifyDataSetChanged();
-                                Log.d(tag, record.get(NAME) + " is " + record.get(TXTRECORD_PROP_AVAILABLE));
-                            }
-                        } catch (NullPointerException e) {
-                            Log.e(tag, "Not this apps service");
-                        }
-                    }
-                });
-
-        WifiP2pDnsSdServiceRequest serviceRequest = WifiP2pDnsSdServiceRequest.newInstance();
-        manager.addServiceRequest(channel, serviceRequest, new WifiP2pManager.ActionListener() {
-
-            @Override
-            public void onSuccess()
-            {
-                BackgroundDiscovery.appendStatus("Added service discovery request");
-            }
-
-            @Override
-            public void onFailure(int arg0)
-            {
-                BackgroundDiscovery.appendStatus("Failed adding service discovery request");
-            }
-        });
-        manager.discoverServices(channel, new WifiP2pManager.ActionListener() {
-
-            @Override
-            public void onSuccess()
-            {
-                BackgroundDiscovery.appendStatus("Service discovery initiated");
-            }
-
-            @Override
-            public void onFailure(int arg0)
-            {
-                BackgroundDiscovery.appendStatus("Service discovery failed");
-
-            }
-        });
+        wifiService = new WifiService("Activity",name, this,devicesAdapter);
+        wifiService.setup();
     }
 
     @Override
     protected void onStop()
     {
         super.onStop();
-        if (manager != null && channel != null) {
-            unregisterReceiver(receiver);
-            manager.removeGroup(channel, new WifiP2pManager.ActionListener() {
-
-                @Override
-                public void onFailure(int reasonCode)
-                {
-                    Log.d(tag, "Disconnect failed. Reason :" + reasonCode);
-                }
-
-                @Override
-                public void onSuccess()
-                {
-                }
-
-            });
-        }
+        wifiService.stopService();
         startService(new Intent(this, BackgroundDiscovery.class));
     }
 

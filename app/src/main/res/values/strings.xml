@@ -7,4 +7,5 @@
 
     <string name="status_unknown">Please wait</string>
     <string name="status_connected">Connected\nHold the volume keys to talk</string>
+    <string name="title_activity_connected">connectedActivity</string>
 </resources>

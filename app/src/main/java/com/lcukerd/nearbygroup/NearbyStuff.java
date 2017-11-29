@@ -2,7 +2,9 @@ package com.lcukerd.nearbygroup;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -88,24 +90,21 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                 }
             };
 
-    public NearbyStuff(String type, String name, Object devices)
+    public NearbyStuff(Context context, String type, String name, Object devices)
     {
         this.type = type;
         this.name = name;
-        if (type.equals("Server"))
+        if (type.equals("Activity"))
             this.reqdDevices.addAll((ArrayList<String>) devices);
-        else
+        else if (type.equals("Service"))
             this.serverName = (String) devices;
+        createNearby(type, context);
     }
 
     public void createNearby(String type, Context context)
     {
         if (hasPermissions(context, REQUIRED_PERMISSIONS)) {
             createGoogleApiClient(context);
-            if (type.equals("client"))
-                postDelayed(mDiscoverRunnable, ADVERTISING_DURATION);
-            else
-                postDelayed(mAdvertiseRunnable, ADVERTISING_DURATION);
         } else {
             Toast.makeText(context, "You fuckin changed permissions!", Toast.LENGTH_SHORT);
         }
@@ -230,11 +229,11 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                             endpointId, connectionInfo.getEndpointName()));
                     Endpoint endpoint = new Endpoint(endpointId, connectionInfo.getEndpointName());
                     mPendingConnections.put(endpointId, endpoint);
-                        if (type.equals("Server")) {
-                            if (reqdDevices.remove(endpoint.getName()))
-                                acceptConnection(endpoint);
-                            else
-                                rejectConnection(endpoint);
+                    if (type.equals("Server")) {
+                        if (reqdDevices.remove(endpoint.getName()))
+                            acceptConnection(endpoint);
+                        else
+                            rejectConnection(endpoint);
                     }
                 }
 
@@ -251,11 +250,9 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                             if (type.equals("Server")) {
                                 Log.e(tag, String.format("Connection with client %s failed. Received status %s.",
                                         endpointId, getString(result.getStatus())));
-                            }
-                            else
-                            {
+                            } else {
                                 Log.e(tag, String.format("Connection with server %s failed. Received status %s.",
-                                        endpointId,getString(result.getStatus())));
+                                        endpointId, getString(result.getStatus())));
                                 onConnectionFailed(mPendingConnections.remove(endpointId));
                             }
                             break;
@@ -277,9 +274,9 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
     public void send(Payload payload)
     {
         ArrayList<String> ids = new ArrayList<>();
-        for (Endpoint e:getConnectedEndpoints())
+        for (Endpoint e : getConnectedEndpoints())
             ids.add(e.getId());
-        Nearby.Connections.sendPayload(mGoogleApiClient,ids, payload)
+        Nearby.Connections.sendPayload(mGoogleApiClient, ids, payload)
                 .setResultCallback(
                         new ResultCallback<Status>() {
                             @Override
@@ -372,26 +369,26 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
         mEstablishedConnections.clear();
     }
 
-    protected void onReceive(NearbyStuff.Endpoint endpoint, Payload payload)
+    protected void onReceive(Endpoint endpoint, Payload payload)
     {
         if (payload.getType() == Payload.Type.STREAM) {
             AudioPlayer player = new AudioPlayer(payload.asStream().asInputStream()) {
-                        @WorkerThread
-                        @Override
-                        protected void onFinish()
-                        {
-                            final AudioPlayer audioPlayer = this;
-                            post(
-                                    new Runnable() {
-                                        @UiThread
-                                        @Override
-                                        public void run()
-                                        {
-                                            mAudioPlayers.remove(audioPlayer);
-                                        }
-                                    });
-                        }
-                    };
+                @WorkerThread
+                @Override
+                protected void onFinish()
+                {
+                    final AudioPlayer audioPlayer = this;
+                    post(
+                            new Runnable() {
+                                @UiThread
+                                @Override
+                                public void run()
+                                {
+                                    mAudioPlayers.remove(audioPlayer);
+                                }
+                            });
+                }
+            };
             mAudioPlayers.add(player);
             player.start();
         }
@@ -524,7 +521,11 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
     @Override
     public void onConnected(@Nullable Bundle bundle)
     {
-        setState(State.DISCOVERING);
+        Log.d(tag,"googleAPI Connected");
+        if (type.equals("Service"))
+            setState(State.DISCOVERING);
+        else if (type.equals("Activity"))
+            setState(State.ADVERTISING);
     }
 
     @Override

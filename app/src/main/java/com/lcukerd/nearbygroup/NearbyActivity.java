@@ -29,7 +29,7 @@ public class NearbyActivity extends AppCompatActivity {
     private NearbyStuff nearbyStuff;
     private static final long VIBRATION_STRENGTH = 500;
     private static final String tag = NearbyActivity.class.getSimpleName();
-    private String mName;
+    private static String mName;
     private static final String[] REQUIRED_PERMISSIONS =
             new String[]{
                     Manifest.permission.BLUETOOTH,
@@ -66,14 +66,20 @@ public class NearbyActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main_old);
         //getSupportActionBar().setBackgroundDrawable(ContextCompat.getDrawable(this, R.drawable.actionBar));
 
-        mName = "mummy";
-        ArrayList<String> reqdDevices = getIntent().getStringArrayListExtra("ReqdDevices");
-
-        ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, 0);
-
         ((TextView) findViewById(R.id.name)).setText(mName);
         vibrate();
-        nearbyStuff = new NearbyStuff("Server", mName,reqdDevices);
+        ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, 0);
+
+        mName = getIntent().getStringExtra("MyName");
+        String type = getIntent().getStringExtra("type");
+        if (type.equals("Activity")) {
+            ArrayList<String> reqdDevices = getIntent().getStringArrayListExtra("ReqdDevices");
+            nearbyStuff = new NearbyStuff(this, "Server", mName, reqdDevices);
+        }else if (type.equals("Service"))
+        {
+            String reqdDevices = getIntent().getStringExtra("ReqdDevices");
+            nearbyStuff = new NearbyStuff(this, "client", mName, reqdDevices);
+        }
     }
 
     @Override
