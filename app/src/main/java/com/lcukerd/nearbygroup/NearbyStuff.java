@@ -104,7 +104,9 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
     public void createNearby(String type, Context context)
     {
         if (hasPermissions(context, REQUIRED_PERMISSIONS)) {
+            Log.d(tag,"Creating googleAPI Client");
             createGoogleApiClient(context);
+            mGoogleApiClient.connect();
         } else {
             Toast.makeText(context, "You fuckin changed permissions!", Toast.LENGTH_SHORT);
         }
@@ -229,7 +231,7 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                             endpointId, connectionInfo.getEndpointName()));
                     Endpoint endpoint = new Endpoint(endpointId, connectionInfo.getEndpointName());
                     mPendingConnections.put(endpointId, endpoint);
-                    if (type.equals("Server")) {
+                    if (type.equals("Activity")) {
                         if (reqdDevices.remove(endpoint.getName()))
                             acceptConnection(endpoint);
                         else
@@ -247,7 +249,7 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                             break;
                         case ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED:
                         case ConnectionsStatusCodes.STATUS_ERROR:
-                            if (type.equals("Server")) {
+                            if (type.equals("Activity")) {
                                 Log.e(tag, String.format("Connection with client %s failed. Received status %s.",
                                         endpointId, getString(result.getStatus())));
                             } else {
@@ -521,7 +523,7 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
     @Override
     public void onConnected(@Nullable Bundle bundle)
     {
-        Log.d(tag,"googleAPI Connected");
+        Log.d(tag,"googleAPI Connected " + type);
         if (type.equals("Service"))
             setState(State.DISCOVERING);
         else if (type.equals("Activity"))

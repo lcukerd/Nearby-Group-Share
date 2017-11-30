@@ -27,11 +27,13 @@ public class MainActivity extends AppCompatActivity {
     private String name;
     private WifiService wifiService;
     private static final String tag = MainActivity.class.getSimpleName();
+    private boolean closingApp = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
+        Log.d(tag,"onCreate");
         setContentView(R.layout.activity_main);
         stopService(new Intent(this, BackgroundDiscovery.class));
 
@@ -68,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.putExtra("ReqdDevices",devicesToConnect);
                 intent.putExtra("MyName",name);
                 intent.putExtra("type","Activity");
+                closingApp = false;
                 startActivity(intent);
             }
         });
@@ -81,7 +84,9 @@ public class MainActivity extends AppCompatActivity {
     {
         super.onStop();
         wifiService.stopService();
-        startService(new Intent(this, BackgroundDiscovery.class));
+        Log.d(tag,"onStop");
+        if (closingApp)
+            startService(new Intent(this, BackgroundDiscovery.class));
     }
 
 }

@@ -74,11 +74,11 @@ public class NearbyActivity extends AppCompatActivity {
         String type = getIntent().getStringExtra("type");
         if (type.equals("Activity")) {
             ArrayList<String> reqdDevices = getIntent().getStringArrayListExtra("ReqdDevices");
-            nearbyStuff = new NearbyStuff(this, "Server", mName, reqdDevices);
+            nearbyStuff = new NearbyStuff(this, type, mName, reqdDevices);
         }else if (type.equals("Service"))
         {
             String reqdDevices = getIntent().getStringExtra("ReqdDevices");
-            nearbyStuff = new NearbyStuff(this, "client", mName, reqdDevices);
+            nearbyStuff = new NearbyStuff(this, type, mName, reqdDevices);
         }
     }
 

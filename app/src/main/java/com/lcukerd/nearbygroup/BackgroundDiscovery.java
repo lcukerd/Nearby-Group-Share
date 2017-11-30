@@ -58,7 +58,7 @@ public class BackgroundDiscovery extends Service {
                 .build();
         startForeground(509, notification);
 
-        return START_STICKY;
+        return START_NOT_STICKY;
     }
 
     @Override

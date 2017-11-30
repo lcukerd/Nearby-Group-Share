@@ -206,8 +206,14 @@ public class WifiService {
 
     public void stopService()
     {
+        countDownTimer.cancel();
         if (manager != null && channel != null) {
-            context.unregisterReceiver(receiver);
+            try {
+                context.unregisterReceiver(receiver);
+            } catch (IllegalArgumentException e)
+            {
+                Log.e(tag,"Reciever not registeres");
+            }
             manager.removeGroup(channel, new WifiP2pManager.ActionListener() {
 
                 @Override
