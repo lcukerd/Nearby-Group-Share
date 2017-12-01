@@ -13,11 +13,20 @@ import android.net.wifi.p2p.WifiP2pManager.ConnectionInfoListener;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.lcukerd.nearbygroup.models.WifiService;
+
 import java.net.InetAddress;
 
 public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
 
     private static final String tag = WiFiDirectBroadcastReceiver.class.getSimpleName();
+    private WifiService wifiService;
+
+    public WiFiDirectBroadcastReceiver(WifiService wifiService)
+    {
+        this.wifiService = wifiService;
+    }
+
 
     @Override
     public void onReceive(Context context, Intent intent)
@@ -42,7 +51,7 @@ public class WiFiDirectBroadcastReceiver extends BroadcastReceiver {
                 Log.d(tag, "WIFI_P2P_STATE_DISABLED");
             }
         } else if (WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION.equals(action)) {
-
+            wifiService.discoverService();
             Log.d(tag, "P2P peers changed");
         }
     }

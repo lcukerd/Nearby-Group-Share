@@ -15,7 +15,6 @@ import android.widget.ArrayAdapter;
 import com.lcukerd.nearbygroup.NearbyActivity;
 import com.lcukerd.nearbygroup.WiFiDirectBroadcastReceiver;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -55,7 +54,7 @@ public class WifiService {
     {
         manager = (WifiP2pManager) context.getSystemService(Context.WIFI_P2P_SERVICE);
         channel = manager.initialize(context, getMainLooper(), null);
-        receiver = new WiFiDirectBroadcastReceiver();
+        receiver = new WiFiDirectBroadcastReceiver(this);
         startWifiP2P();
     }
 
@@ -90,7 +89,7 @@ public class WifiService {
             RegisterService("connect");
         else
             RegisterService("discover");
-        discoverService();
+        startdiscoverService();
     }
 
     private void RegisterService(String status)
@@ -119,7 +118,7 @@ public class WifiService {
         });
     }
 
-    private void discoverService()
+    private void startdiscoverService()
     {
 
         manager.setDnsSdResponseListeners(channel,
@@ -171,6 +170,10 @@ public class WifiService {
                 appendStatus("Failed adding service discovery request");
             }
         });
+        discoverService();
+    }
+    public void discoverService()
+    {
         manager.discoverServices(channel, new WifiP2pManager.ActionListener() {
 
             @Override

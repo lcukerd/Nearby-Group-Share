@@ -225,17 +225,26 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
     private final ConnectionLifecycleCallback mConnectionLifecycleCallback =
             new ConnectionLifecycleCallback() {
                 @Override
-                public void onConnectionInitiated(final String endpointId, ConnectionInfo connectionInfo)
+                public void onConnectionInitiated(String endpointId, ConnectionInfo connectionInfo)
                 {
                     Log.d(tag, String.format("onConnectionInitiated(endpointId=%s, endpointName=%s)",
                             endpointId, connectionInfo.getEndpointName()));
                     Endpoint endpoint = new Endpoint(endpointId, connectionInfo.getEndpointName());
                     mPendingConnections.put(endpointId, endpoint);
                     if (type.equals("Activity")) {
-                        if (reqdDevices.remove(endpoint.getName()))
+                        if (reqdDevices.remove(endpoint.getName())) {
+                            Log.d(tag, "Legit device");
                             acceptConnection(endpoint);
-                        else
+                        }else
+                        {
+                            Log.d(tag,"Fake device");
                             rejectConnection(endpoint);
+                        }
+                    }
+                    else
+                    {
+                        Log.d(tag,"Client device accepting connection");
+                        acceptConnection(endpoint);
                     }
                 }
 
@@ -248,6 +257,7 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
                             connectedToEndpoint(mPendingConnections.remove(endpointId));
                             break;
                         case ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED:
+                            Log.e(tag,"Connection Rejected");
                         case ConnectionsStatusCodes.STATUS_ERROR:
                             if (type.equals("Activity")) {
                                 Log.e(tag, String.format("Connection with client %s failed. Received status %s.",
@@ -327,7 +337,7 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
         Nearby.Connections.stopDiscovery(mGoogleApiClient);
     }
 
-    protected void acceptConnection(final Endpoint endpoint)
+    protected void  acceptConnection(final Endpoint endpoint)
     {
         Nearby.Connections.acceptConnection(mGoogleApiClient, endpoint.getId(), mPayloadCallback)
                 .setResultCallback(
@@ -412,6 +422,7 @@ public class NearbyStuff implements GoogleApiClient.OnConnectionFailedListener, 
     private void connectedToEndpoint(Endpoint endpoint)
     {
         Log.d(tag, String.format("connectedToEndpoint(endpoint=%s)", endpoint));
+        mState = State.CONNECTED;
         mEstablishedConnections.put(endpoint.getId(), endpoint);
     }
 
